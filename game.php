@@ -1,83 +1,106 @@
 <?php
 session_start();
-header('refresh:1');
+include_once('sql-connect.php');
+
+$sql = new SqlConnect(); 
+$grid1 = "SELECT * FROM joueur1";  //met la commande  a réaliser dans le sql
+$stmt = $sql->db->prepare($grid1); //récupère la table joueur 1
+$stmt->execute(); //execute la commande
+
+$grid1 = $stmt->fetchAll(PDO::FETCH_ASSOC);  //affecte à $grid la grille joueur 1
+
+$mygrid = [];
+foreach($grid1 as $row) {
+    $letter = $row['gridid'][0]; //récupère la lettre de gridID
+    $number = intval(substr($row['gridid'],1)) - 1; //récupère le nombre présent après la lettre 
+    $mygrid[$letter][$number] = $row['checked'];
+}
+$grid2 = "SELECT * FROM joueur1";
+$stmt = $sql->db->prepare($grid2);
+$stmt->execute();
+
+$grid2 = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$enemygrid = [];
+foreach($grid1 as $row) {
+    $letter = $row['gridid'][0];
+    $number = intval(substr($row['gridid'],1)) - 1; 
+    $enemygrid[$letter][$number] = $row['checked'];
+}
+
 $fichier = "etat_joueurs.json";
 $etat = json_decode(file_get_contents($fichier), true);
 
-if ($etat["j1"] === session_id()) {
+if ($etat["j1"] === session_id()) { //si l'utilisateur est j1 = donne role et shots
     $role = "Joueur 1";
+    $shots = "shots_j1";
 } elseif ($etat["j2"] === session_id()) {
     $role = "Joueur 2";
+    $shots = "shots_j2";
 } else {
     $role = "Aucun rôle";
 }
+$shotscoord = $etat[$shots] ?? []; //recup les shots dans etat_joueurs
 
-$grid = 
-[
-  [3,0,0,0,0,0,0,2,2,0],
-  [3,0,0,0,0,0,0,0,0,0],
-  [3,0,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,2,2,0,0,0],
-  [0,0,0,0,0,5,0,0,0,4],
-  [0,0,0,0,0,5,0,0,0,4],
-  [0,0,0,0,0,5,0,0,0,4],
-  [3,3,3,0,0,5,0,0,0,4],
-  [0,0,0,0,0,5,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0]
-];
-
-$enemygrid =
-[
-  [0,0,4,4,4,4,0,0,0,0],
-  [0,0,0,0,0,0,0,3,0,0],
-  [2,2,2,2,0,0,0,3,0,0],
-  [0,0,0,0,0,0,0,3,0,0],
-  [0,5,0,0,0,0,0,0,0,0],
-  [0,5,0,0,0,0,0,0,0,0],
-  [0,5,0,0,0,2,2,2,0,0],
-  [0,5,0,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0],
-  [0,0,0,4,4,4,4,0,0,0]
-];
 if ($role =="Joueur 1")
 {
-  $mygrid=$grid;
-  $theirgrid=$enemygrid;
+  $mygrid=$grid1; //affecte la grille 1 en tant que grille de l'utilisateur
+  $theirgrid=$grid2; //affecte la grille 2 en tant que grille de l'adversaire
 }
 else if ($role =="Joueur 2")
 {
-  $mygrid=$enemygrid;
-  $theirgrid=$grid;
+  $mygrid=$grid2;
+  $theirgrid=$grid1;
 }
-
-$dict = ['A'=>0,'B'=>1,'C'=>2,'D'=>3,'E'=>4,'F'=>5,'G'=>6,'H'=>7,'I'=>8,'J'=>9];
-$letters = range('A','J');
-$coord = $_GET['coord'] ?? null;
-$shots = [];
-
-if ($coord && !in_array($coord, $shots)) {
-    $shots[] = $coord;
-}
-$fichier = "etat_joueurs.json";
-$etat = json_decode(file_get_contents($fichier), true);
-
 function save_state($file, $data) {
   file_put_contents($file, json_encode($data));
 }
 
+$letters = range('A','J');
+for ($i=0; $i<10; $i++) {
+    foreach($letters as $letter) {
+        if (!isset($theirgrid[$letter][$i])) { //initialise les grilles 
+            $theirgrid[$letter][$i] = 0;
+        }
+        if (!isset($mygrid[$letter][$i])) {
+            $mygrid[$letter][$i]= 0;
+        }
+    }
+}
+
+$coord = $_GET['coord'] ?? null; //récupère la coordonnée cliqué
+
+if ($coord && !in_array($coord, $shotscoord)) {
+    $shotscoord[] = $coord;
+    $etat[$shots]= $shotscoord;
+    save_state($GLOBALS['fichier'], $etat);
+    $_POST['cell'] = $coord;
+    include('click_case.php');
+}
+
+
 if (isset($_POST["reset_total"])) {
-  $etat = ["j1" => null, "j2" => null, "start" =>false];
+  $etat = ["j1" => null, "j2" => null, "start" =>false]; //reset les données
   save_state($GLOBALS['fichier'], $etat);
 
   session_unset();
   session_destroy();
+
+  $sql = new SqlConnect();
+    $tables = ['joueur1', 'joueur2'];
+
+    foreach ($tables as $table) {
+        $query = "UPDATE $table SET checked = 0"; //rénitialise les deux grilles
+        $stmt = $sql->db->prepare($query);
+        $stmt->execute();
+    }
 }
 if ($etat["start"] === false) {
-  header("Location: pregame.php");
+  header("Location: pregame.php"); //renvoie sur la page d'accueil
   exit;
 }
 
-
+header('refresh:5'); 
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -111,7 +134,7 @@ if ($etat["start"] === false) {
           <th><?= $letter ?></th>
 
           <?php for ($i=1;$i<=10;$i++): 
-            $coord1 = $dict[$letter];
+            $coord1 = $letter;
             $coord2 = $i-1;
 
             $color = "";
@@ -147,17 +170,19 @@ if ($etat["start"] === false) {
           <th><?= $letter ?></th>
 
           <?php for ($i=1;$i<=10;$i++): 
-            $coord1 = $dict[$letter];
+            $coord1 = $letter;
             $coord2 = $i-1;
 
             $current = $letter.$i;
 
             $color = "";
-            if (in_array($current, $shots)) {
-                if ($theirgrid[$coord1][$coord2] == 0)
+            if (in_array($current, $shotscoord)) {
+                if ($theirgrid[$coord1][$coord2] == 0){
                     $color = "miss";
-                else
+                }
+                else{
                     $color = "hit";
+                }
             }
           ?>
           <td class="<?= $color ?>">

@@ -5,7 +5,7 @@ $role = $_SESSION["role"] ?? "Aucun rôle";
   
 $fichier = "etat_joueurs.json";
 if (!file_exists($fichier)) {
-  file_put_contents($fichier, json_encode(["j1" => null, "j2" => null, "start" => false]));
+  file_put_contents($fichier, json_encode(["j1" => null, "j2" => null, "start" => false,"shots_j1"=>null,"shots_j2"=>null]));
 }
 
 $etat = json_decode(file_get_contents($fichier), true);
@@ -50,7 +50,7 @@ if (isset($_POST["reset_total"])) {
     exit;
 }
 
-header('refresh:1');
+header('refresh:5');
   ?>
 
   <!DOCTYPE html>
