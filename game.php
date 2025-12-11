@@ -9,24 +9,11 @@ $stmt->execute(); //execute la commande
 
 $grid1 = $stmt->fetchAll(PDO::FETCH_ASSOC);  //affecte à $grid la grille joueur 1
 
-$mygrid = [];
-foreach($grid1 as $row) {
-    $letter = $row['gridid'][0]; //récupère la lettre de gridID
-    $number = intval(substr($row['gridid'],1)) - 1; //récupère le nombre présent après la lettre 
-    $mygrid[$letter][$number] = $row['checked'];
-}
-$grid2 = "SELECT * FROM joueur1";
+$grid2 = "SELECT * FROM joueur2";
 $stmt = $sql->db->prepare($grid2);
 $stmt->execute();
 
 $grid2 = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-$enemygrid = [];
-foreach($grid1 as $row) {
-    $letter = $row['gridid'][0];
-    $number = intval(substr($row['gridid'],1)) - 1; 
-    $enemygrid[$letter][$number] = $row['checked'];
-}
 
 $fichier = "etat_joueurs.json";
 $etat = json_decode(file_get_contents($fichier), true);
@@ -34,6 +21,7 @@ $etat = json_decode(file_get_contents($fichier), true);
 if ($etat["j1"] === session_id()) { //si l'utilisateur est j1 = donne role et shots
     $role = "Joueur 1";
     $shots = "shots_j1";
+    
 } elseif ($etat["j2"] === session_id()) {
     $role = "Joueur 2";
     $shots = "shots_j2";
@@ -42,15 +30,34 @@ if ($etat["j1"] === session_id()) { //si l'utilisateur est j1 = donne role et sh
 }
 $shotscoord = $etat[$shots] ?? []; //recup les shots dans etat_joueurs
 
-if ($role =="Joueur 1")
-{
-  $mygrid=$grid1; //affecte la grille 1 en tant que grille de l'utilisateur
-  $theirgrid=$grid2; //affecte la grille 2 en tant que grille de l'adversaire
-}
-else if ($role =="Joueur 2")
-{
-  $mygrid=$grid2;
-  $theirgrid=$grid1;
+if ($role == "Joueur 1") {
+    $mygrid = []; //affecte les grilles pour joueur1
+    foreach($grid1 as $row){
+        $letter = $row['gridid'][0];
+        $number = intval(substr($row['gridid'],1)) - 1;
+        $mygrid[$letter][$number] = $row['boat'];
+    }
+
+    $theirgrid = [];
+    foreach($grid2 as $row){
+        $letter = $row['gridid'][0];
+        $number = intval(substr($row['gridid'],1)) - 1;
+        $theirgrid[$letter][$number] = $row['boat'];
+    }
+} else {
+    $mygrid = []; //affecte les grilles pour joueur2
+    foreach($grid2 as $row){
+        $letter = $row['gridid'][0];
+        $number = intval(substr($row['gridid'],1)) - 1;
+        $mygrid[$letter][$number] = $row['boat'];
+    }
+
+    $theirgrid = [];
+    foreach($grid1 as $row){
+        $letter = $row['gridid'][0];
+        $number = intval(substr($row['gridid'],1)) - 1;
+        $theirgrid[$letter][$number] = $row['boat'];
+    }
 }
 function save_state($file, $data) {
   file_put_contents($file, json_encode($data));
@@ -73,7 +80,7 @@ $coord = $_GET['coord'] ?? null; //récupère la coordonnée cliqué
 if ($coord && !in_array($coord, $shotscoord)) {
     $shotscoord[] = $coord;
     $etat[$shots]= $shotscoord;
-    save_state($GLOBALS['fichier'], $etat);
+    save_state($fichier, $etat);
     $_POST['cell'] = $coord;
     include('click_case.php');
 }
@@ -81,7 +88,7 @@ if ($coord && !in_array($coord, $shotscoord)) {
 
 if (isset($_POST["reset_total"])) {
   $etat = ["j1" => null, "j2" => null, "start" =>false]; //reset les données
-  save_state($GLOBALS['fichier'], $etat);
+  save_state($fichier, $etat);
 
   session_unset();
   session_destroy();
@@ -100,7 +107,7 @@ if ($etat["start"] === false) {
   exit;
 }
 
-header('refresh:5'); 
+header('refresh:3'); 
 ?>
 <!DOCTYPE html>
 <html lang="fr">

@@ -50,7 +50,7 @@ if (isset($_POST["reset_total"])) {
     exit;
 }
 
-header('refresh:5');
+header('refresh:2');
   ?>
 
   <!DOCTYPE html>
