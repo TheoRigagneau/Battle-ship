@@ -17,3 +17,13 @@
 .ship{
     background-color: green !important;
 }
+.hitself{
+    background-color: rgb(133, 2, 2) !important;
+}
+.missself {
+    background-color:  rgb(29, 29, 112) !important;
+}
+.disabled-grid {
+    pointer-events: none; 
+    opacity: 0.6;
+}

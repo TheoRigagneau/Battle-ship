@@ -19,13 +19,22 @@ $etat = json_decode(file_get_contents($fichier), true);
 if ($etat["j1"] === session_id()) { //si l'utilisateur est j1 = donne role et shots
     $role = "Joueur 1";
     $shots = "shots_j1";
+    $enemyshots = "shots_j2";
     
 } elseif ($etat["j2"] === session_id()) {
     $role = "Joueur 2";
     $shots = "shots_j2";
+    $enemyshots = "shots_j1";
 } else {
     $role = "Aucun rôle";
 }
+$isMyTurn = false;
+if ($etat["turn"] === "j1" && $role === "Joueur 1"){          //systeme de tour par tour 
+  $isMyTurn = true;                                           //la variable turn dans le .json est sois j1 ou j2 et quand elle a l'un l'autre ne peut plus cliqué
+}elseif ($etat["turn"] === "j2" && $role === "Joueur 2"){
+  $isMyTurn = true;
+}
+
 $shotscoord = $etat[$shots] ?? []; //recup les shots dans etat_joueurs
 
 if ($role == "Joueur 1") {
@@ -33,7 +42,7 @@ if ($role == "Joueur 1") {
     foreach($grid1 as $row){
         $letter = $row['gridid'][0];
         $number = intval(substr($row['gridid'],1)) - 1;
-        $mygrid[$letter][$number] = $row['boat'];
+        $mygrid[$letter][$number] = $row['boat']; //récupère la présence ou non d'un bateau sur chaque case
     }
 
     $theirgrid = [];
@@ -75,17 +84,30 @@ for ($i=0; $i<10; $i++) {
 
 $coord = $_GET['coord'] ?? null; //récupère la coordonnée cliqué
 
-if ($coord && !in_array($coord, $shotscoord)) {
+if ($coord && $isMyTurn && !in_array($coord, $shotscoord)) {
     $shotscoord[] = $coord;
-    $etat[$shots]= $shotscoord;
+    $etat[$shots] = $shotscoord;
+
+    if ($touche == 0){
+      $etat["turn"] = ($role === "Joueur 1") ? "j2" : "j1";
+    }
+    elseif($touche == 1){
+      $etat["turn"] = $etat["turn"];
+    }
     save_state($fichier, $etat);
     $_POST['cell'] = $coord;
     include('click_case.php');
 }
 
+$who_start=(rand(0, 1) === 0) ? "j1" : "j2";
 
 if (isset($_POST["reset_total"])) {
-  $etat = ["j1" => null, "j2" => null, "start" =>false]; //reset les données
+  $etat = [
+    "j1" => null,
+    "j2" => null,
+    "start" => false,
+    "turn" => $who_start
+  ];
   save_state($fichier, $etat);
 
   session_unset();
@@ -143,8 +165,26 @@ header('refresh:3');
             $coord2 = $i-1;
 
             $color = "";
-            if ($mygrid[$coord1][$coord2] != 0)
+            if ($mygrid[$coord1][$coord2] != 0) 
                 $color = "ship";
+
+            $enemyShotsCoord = $etat[$enemyshots] ?? []; 
+            $coordactuel = $letter.($i); //récupère les coordonées à l'instant t
+            foreach($enemyShotsCoord as $shot) { 
+
+              if ($coordactuel == $shot) {
+
+                if ($mygrid[$coord1][$coord2] == 0){
+                  $color ="missself"; //change de couleur la case du coté de la personne attaqué
+                }
+                else{
+                  $color ="hitself";
+                }
+                break;
+              }
+            }
+            
+            
           ?>
             <td class="<?= $color ?>">
               <a class="button"></a>
@@ -161,7 +201,7 @@ header('refresh:3');
   <div class="col-6">
     <h4>Grille adverse</h4>
 
-    <table class="table table-bordered table-striped text-center align-middle">
+    <table class="table table-bordered table-striped text-center align-middle <?= $isMyTurn ? '' : 'disabled-grid' ?>">
       <thead class="table-dark">
         <tr>
           <th></th>
@@ -191,7 +231,7 @@ header('refresh:3');
             }
           ?>
           <td class="<?= $color ?>">
-            <a class="button" href="?coord=<?= $letter.$i ?>"></a>
+              <a class="button" href="?coord=<?= $letter.$i ?>"></a>
           </td>
           <?php endfor; ?>
         </tr>
