@@ -16,6 +16,11 @@ $grid2 = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $fichier = "etat_joueurs.json";
 $etat = json_decode(file_get_contents($fichier), true);
 
+if (!empty($etat["winner"])) {  //si $etat winner contient une valeur : j1 ou j2 cela renvoie les 2 utilisateurs sur la page victoire
+    header("Location: victoire.php");
+    exit;
+}
+
 if ($etat["j1"] === session_id()) { //si l'utilisateur est j1 = donne role et shots
     $role = "Joueur 1";
     $shots = "shots_j1";
@@ -66,6 +71,8 @@ if ($role == "Joueur 1") {
         $theirgrid[$letter][$number] = $row['boat'];
     }
 }
+
+
 function save_state($file, $data) {
   file_put_contents($file, json_encode($data));
 }
@@ -88,16 +95,29 @@ if ($coord && $isMyTurn && !in_array($coord, $shotscoord)) {
     $shotscoord[] = $coord;
     $etat[$shots] = $shotscoord;
 
-    if ($touche == 0){
-      $etat["turn"] = ($role === "Joueur 1") ? "j2" : "j1";
-    }
-    elseif($touche == 1){
-      $etat["turn"] = $etat["turn"];
-    }
+    $etat["turn"] = ($role === "Joueur 1") ? "j2" : "j1"; //change de joueur à chaque fois
     save_state($fichier, $etat);
+
+    $totalHits = 0;
+    echo "test";
+    foreach ($shotscoord as $shot) { //teste pour chaque cas si un bateau est présent et est touché
+      $letter = $shot[0];
+      $number = intval(substr($shot, 1)) - 1;
+        if (isset($theirgrid[$letter][$number]) && $theirgrid[$letter][$number] != 0) {
+          $totalHits++; //incrémente dès qu'une case bateau est touché
+        }
+      }
+
+    if ($totalHits >= 3) { //si toutes les cases bateaux sont touchées
+        $etat["winner"] = ($role === "Joueur 1") ? "j1" : "j2"; //fin de partie
+        save_state($fichier, $etat);
+        header("Location: victoire.php");
+        exit;
+    }
     $_POST['cell'] = $coord;
     include('click_case.php');
 }
+
 
 $who_start=(rand(0, 1) === 0) ? "j1" : "j2";
 
@@ -127,7 +147,7 @@ if ($etat["start"] === false) {
   exit;
 }
 
-header('refresh:3'); 
+header('refresh:1'); 
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -151,7 +171,9 @@ header('refresh:3');
       <thead class="table-dark">
         <tr>
           <th></th>
-          <?php for ($i=1;$i<=10;$i++): ?><th><?= $i ?></th><?php endfor; ?>
+          <?php for ($i=1;$i<=10;$i++): ?>
+            <th><?= $i ?></th>
+          <?php endfor; ?>
         </tr>
       </thead>
 
