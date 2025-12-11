@@ -6,13 +6,11 @@ $sql = new SqlConnect();
 $grid1 = "SELECT * FROM joueur1";  //met la commande  a réaliser dans le sql
 $stmt = $sql->db->prepare($grid1); //récupère la table joueur 1
 $stmt->execute(); //execute la commande
-
 $grid1 = $stmt->fetchAll(PDO::FETCH_ASSOC);  //affecte à $grid la grille joueur 1
 
 $grid2 = "SELECT * FROM joueur2";
 $stmt = $sql->db->prepare($grid2);
 $stmt->execute();
-
 $grid2 = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $fichier = "etat_joueurs.json";
